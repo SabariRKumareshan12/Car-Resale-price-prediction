@@ -1,0 +1,366 @@
+!pip install boto3
+
+import boto3
+a_key="key"
+s_key="key"
+
+s3=boto3.client("s3",aws_access_key_id=a_key,aws_secret_access_key=s_key)
+
+bucket=s3.list_buckets()
+bucket
+
+bucket_file=s3.list_objects_v2(Bucket=bucket["Buckets"][0]["Name"])
+bucket_file
+
+import pickle
+
+s3.put_object(Bucket=bucket["Buckets"][0]["Name"], Key="Bangalore/")
+
+bucket_name=bucket["Buckets"][0]["Name"]
+file_name="/content/bangalore_cars.xlsx"
+s3_object="Bangalore"+"Bangalore.CSV"
+with open(file_name,"rb") as f:
+  s3.upload_fileobj(f,bucket_name,s3_object)
+
+def create(i,path):
+  bucket_name=bucket["Buckets"][0]["Name"]
+  s3_object = f"{i}/{i}.CSV"
+  with open(path,"rb") as f:
+    s3.upload_fileobj(f,bucket_name,s3_object)
+
+o={"bangalore":"/content/bangalore_cars.xlsx",
+   "chennai":"/content/chennai_cars.xlsx","delhi":"/content/delhi_cars.xlsx","hyderabad":"/content/hyderabad_cars.xlsx",
+   "jaipur":"/content/jaipur_cars.xlsx","kolkata":"/content/kolkata_cars.xlsx"}
+for i in o.keys():
+  create(i,o[i])
+
+def download(i,path):
+  s3.download_file(bucket["Buckets"][0]["Name"],path,f"{i}.xlsx")
+
+p={"bangalore":bucket_file["Contents"][0]["Key"],
+   "chennai":bucket_file["Contents"][1]["Key"],"delhi":bucket_file["Contents"][2]["Key"],"hyderabad":bucket_file["Contents"][3]["Key"],
+   "jaipur":bucket_file["Contents"][4]["Key"],"kolkata":bucket_file["Contents"][5]["Key"]}
+for i in p.keys():
+  download(i,p[i])
+
+import pandas as pd
+import json
+import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+BLR = pd.read_excel('/content/bangalore.xlsx')
+
+
+MAA = pd.read_excel('/content/chennai.xlsx')
+
+
+CCU = pd.read_excel('/content/kolkata.xlsx')
+
+
+JAI = pd.read_excel('/content/jaipur.xlsx')
+
+
+HYD = pd.read_excel('/content/hyderabad.xlsx')
+
+
+DEL = pd.read_excel('/content/delhi.xlsx')
+
+
+BLR['city'] = 'Bangalore'
+
+MAA['city'] = 'Chennai'
+
+CCU['city'] = 'Kolkata'
+
+JAI['city'] = 'Jaipur'
+
+HYD['city'] = 'Hyderabad'
+
+DEL['city'] = 'Delhi'
+
+
+df = pd.concat([CCU, JAI, HYD, DEL, MAA, BLR], ignore_index=True)
+
+df.to_excel('car_details_by_citys.xlsx', index=False)
+
+
+df
+
+df["new_car_overview"][1]
+
+df["new_car_feature"][1]
+
+import json
+
+# Define helper functions to extract car details
+def car_overview_dict_creator(overview):
+    overview_dict = json.loads(overview.replace("'", '"').replace('None', "null"))
+    return {item['key']: item['value'] for item in overview_dict.get('top', [])}
+
+def car_feature_dict_creator(feature):
+    all_features = {}
+    feature_dict = json.loads(feature.replace("'", '"').replace('None', "null"))
+    # Extract 'top' features
+    for dictionary in feature_dict.get('top', []):
+        all_features[dictionary['value']] = True
+    # Extract nested 'data' features
+    for section in feature_dict.get('data', []):
+        for item in section.get('list', []):
+            all_features[item['value']] = True
+    return all_features
+
+def car_spec_dict_creator(spec):
+    specs_dict = json.loads(spec.replace("'", '"').replace('None', "null"))
+    all_specs = {item['key']: item['value'] for item in specs_dict.get('top', [])}
+    # Extract nested specs from 'data'
+    for dictionary in specs_dict.get('data', []):
+        for item in dictionary.get('list', []):
+            all_specs[item['key']] = item['value']
+    return all_specs
+
+# Extract car details
+df['new_car_detail'] = df['new_car_detail'].apply(lambda x: json.loads(x.replace("'", '"').replace('None', "null")))
+df_car_detail = pd.DataFrame(df['new_car_detail'].tolist())
+
+# Extract car overview
+df['new_car_overview'] = df['new_car_overview'].apply(car_overview_dict_creator)
+df_car_overview = pd.DataFrame(df['new_car_overview'].tolist())
+
+# Extract car features
+df['feature_dict'] = df['new_car_feature'].apply(car_feature_dict_creator)
+df_car_feature = pd.json_normalize(df['feature_dict']).fillna(False).astype(int)
+
+# Extract car specs
+df['new_car_specs'] = df['new_car_specs'].apply(car_spec_dict_creator)
+df_car_specs = pd.DataFrame(df['new_car_specs'].tolist())
+
+# Combine DataFrames and save to Excel
+df_main = df[['city', 'car_links']]
+final_df = pd.concat([df_main, df_car_detail, df_car_overview, df_car_feature, df_car_specs], axis=1)
+final_df.to_excel('extracted_car_details.xlsx', index=False)
+
+list_column=["city","ft","bt","km","transmission","ownerNo","oem","model","modelYear","variantName","price","Registration Year","Insurance Validity","Seats","Engine Displacement"]
+ml_df=final_df[list_column]
+
+ml_df.to_excel('ml_dl.xlsx', index=False)
+
+ml_df
+
+ml_df = ml_df.loc[:, ~ml_df.columns.duplicated(keep='last')]
+
+ml_df.info()
+
+ml_df["km"]=ml_df["km"].str.replace(',', '').astype(int)
+ml_df["ownerNo"]=ml_df["ownerNo"].astype(int)
+ml_df["modelYear"]=ml_df["modelYear"].astype(int)
+ml_df.loc[ml_df["Seats"].isnull(), "Seats"] = ml_df.loc[ml_df["Seats"].isnull()].apply(lambda i: 5 if i["bt"] in ("Hatchback","Sedan","SUV") else i["Seats"], axis=1)
+ml_df['Seats'] = ml_df['Seats'].apply(lambda i:5 if i=="null" else i).astype(int)
+ml_df["Engine Displacement"]=ml_df["Engine Displacement"].fillna(0)
+ml_df["Engine Displacement"]=ml_df["Engine Displacement"].str.replace(" cc","")
+
+
+ml_df["Registration Year"] = ml_df["Registration Year"].str.replace(r'\D+', '', regex=True)
+
+ml_df["Registration Year"].isnull().sum()
+
+ml_df["Registration Year"]=ml_df.apply(lambda i: i["modelYear"] if pd.isna(i["Registration Year"]) else i["Registration Year"],axis=1)
+
+ml_df["Registration Year"] = ml_df["Registration Year"].astype(int)
+
+ml_df["Engine Displacement"]=ml_df["Engine Displacement"].fillna(0)
+
+ml_df["Engine Displacement"]=ml_df["Engine Displacement"].astype(int)
+
+ml_df["price"] = ml_df["price"].str.replace(',', '')
+
+def convert_to_integer(value):
+    value = value.replace('₹', '').strip()
+
+    if 'Crore' in value:
+        value = value.replace('Crore', '').strip()
+        value = float(value) * 10000000
+    elif 'Lakh' in value:
+        value = value.replace('Lakh', '').strip()
+        value = float(value) * 100000
+
+    return int(value)
+
+ml_df["price"] = ml_df["price"].apply(convert_to_integer)
+
+ml_df["bt"].isnull().sum()
+
+ml_df["variantName"].unique()
+
+def clear(value):
+  if pd.isnull(value):
+    value="Not Available"
+  elif value=="Third Party insurance":
+    value="Third Party"
+  else:
+    value
+  return value
+ml_df["Insurance Validity"]=ml_df["Insurance Validity"].apply(clear)
+
+import pickle
+from sklearn.preprocessing import OrdinalEncoder
+
+categorical_cols = ml_df.select_dtypes(include=["object"]).columns.tolist()
+
+# Initialize and Fit Encoder
+encoder = OrdinalEncoder()
+ml_df[categorical_cols] = encoder.fit_transform(ml_df[categorical_cols])
+
+
+
+import pickle
+from sklearn.preprocessing import OrdinalEncoder
+
+encoder = OrdinalEncoder().fit(ml_df[["city"]])
+ml_df["city"]=encoder.transform(ml_df[["city"]])
+with open('encoder_city.pkl', 'wb') as f:
+    pickle.dump(encoder, f)
+
+encoder1 = OrdinalEncoder().fit(ml_df[["ft"]])
+ml_df["ft"]=encoder1.transform(ml_df[["ft"]])
+with open('encoder_ft.pkl', 'wb') as f:
+    pickle.dump(encoder1, f)
+
+encoder2 = OrdinalEncoder().fit(ml_df[["bt"]])
+ml_df["bt"]=encoder2.transform(ml_df[["bt"]])
+with open('encoder_bt.pkl', 'wb') as f:
+    pickle.dump(encoder2, f)
+
+encoder3 = OrdinalEncoder().fit(ml_df[["transmission"]])
+ml_df["transmission"]=encoder3.transform(ml_df[["transmission"]])
+with open('encoder_transmission.pkl', 'wb') as f:
+    pickle.dump(encoder3, f)
+
+encoder4 = OrdinalEncoder().fit(ml_df[["oem"]])
+ml_df["oem"]=encoder4.transform(ml_df[["oem"]])
+with open('encoder_oem.pkl', 'wb') as f:
+    pickle.dump(encoder4, f)
+
+encoder5 = OrdinalEncoder().fit(ml_df[["model"]])
+ml_df["model"]=encoder5.transform(ml_df[["model"]])
+with open('encoder_model.pkl', 'wb') as f:
+    pickle.dump(encoder5, f)
+
+encoder6 = OrdinalEncoder().fit(ml_df[["variantName"]])
+ml_df["variantName"]=encoder6.transform(ml_df[["variantName"]])
+with open('encoder_variantName.pkl', 'wb') as f:
+    pickle.dump(encoder6, f)
+
+encoder7 = OrdinalEncoder().fit(ml_df[["Insurance Validity"]])
+ml_df["Insurance Validity"]=encoder7.transform(ml_df[["Insurance Validity"]])
+with open('encoder_Insurance_Validity.pkl', 'wb') as f:
+    pickle.dump(encoder7, f)
+
+ml_df
+
+ml_df.corr()
+
+continues=["km","ownerNo","modelYear","price","Registration Year","Seats","Engine Displacement"]
+categories=["city","ft","bt","transmission","oem","model","variantName","Insurance Validity"]
+
+from scipy import stats
+#ConvsCon
+def two_sample(d1,d2):
+  t=0
+  f=0
+  for i in  range(31):
+    sample1=d1.sample(frac=0.03)
+    sample2=d2.sample(frac=0.03)
+    t_test,p_value=stats.ttest_ind(sample1,sample2)
+    if p_value < 0.055:
+      f=f+1
+    else:
+      t=t+1
+  if t>f:
+    return True
+  else:
+    return False
+
+#defining function for categories vs categories
+def chisqare_cat_vs_cat(d1,d2):
+  return True if stats.chi2_contingency(pd.crosstab(d1,d2))[1] < 0.055 else False
+
+def annova_test(d1,d2):
+  group=ml_df[d2].unique()
+  data={}
+  for i in group:
+    data[i]=ml_df[d1][ml_df[d2]==i]
+  f_value,p_value=stats.f_oneway(*[i for i in data.values()])
+  if p_value < 0.055:
+    return False
+  else:
+    return True
+
+final={}
+for i in ml_df.columns:
+  final[i]={}
+  for j in ml_df.columns:
+    if (i in continues) and (j in continues):
+      result=two_sample(ml_df[i],ml_df[j])
+    elif  (i in continues) and (j in categories):
+      result=annova_test(i,j)
+    elif (i in categories) and (j in continues):
+      result=annova_test(j,i)
+    elif (i in categories) and (j in categories):
+      result=chisqare_cat_vs_cat(ml_df[i],ml_df[j])
+    if result:
+      final[i][j]=1
+    else:
+      final[i][j]=0
+
+hypo=pd.DataFrame(final)
+
+hypo
+
+#As per correlation test , hypothesis test and Logical data based on Bussiness, No column is removed
+
+ml_df1=ml_df.copy()
+
+ml_df=ml_df1.copy()
+
+for i in continues:
+  print(i,ml_df[i].skew(),ml_df[i].kurtosis())
+
+data=["km","ownerNo","modelYear","Registration Year","Seats","Engine Displacement"]
+for i in data:
+  ml_df[i]=np.log(ml_df[i]+1)
+  print(i,a.skew(),a.kurtosis())
+
+ml_df
+
+y=ml_df["price"]
+x=ml_df.drop("price",axis=1)
+
+from sklearn.model_selection import train_test_split
+x_train,x_test,y_train,y_test=train_test_split(x,y,test_size=0.2)
+
+from sklearn.metrics import mean_squared_error,mean_absolute_error,r2_score
+
+from sklearn.ensemble import RandomForestRegressor
+model10 = RandomForestRegressor(n_estimators=100,criterion='squared_error',max_depth=2, random_state=0)
+result=model10.fit(x_train, y_train)
+y_pred = model10.predict(x_test)
+
+print(mean_squared_error(y_test,y_pred))
+print(mean_absolute_error(y_test,y_pred))
+print(r2_score(y_test,y_pred))
+
+print(mean_squared_error(y_test,y_pred))
+print(mean_absolute_error(y_test,y_pred))
+print(r2_score(y_test,y_pred))
+
+print(type(model10))
+
+from sklearn.ensemble import AdaBoostRegressor
+from sklearn.tree import DecisionTreeRegressor
+base_model000 = DecisionTreeRegressor(max_depth=4)
+model000 = AdaBoostRegressor(estimator=base_model000, n_estimators=50, learning_rate=0.1, random_state=42).fit(x_train, y_train)
+y_pred = model000.predict(x_test)
+
+with open("carmodel1.pkl","wb") as f:
+  pickle.dump(model10,f)
