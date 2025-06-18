@@ -170,7 +170,7 @@ with tab3:
     st.header("Car Chatbot Assistant 💬")
     df = load_car_data()
             
-    user_query = st.text_input("Ask me about cars!", "Tell me about...")
+    user_query = st.text_input("Ask me about cars!", "Tell me about Tata Punch")
 
     if user_query:
             if "tell me about" in user_query.lower():
