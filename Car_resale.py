@@ -6,7 +6,6 @@ import base64
 from sklearn.preprocessing import OrdinalEncoder
 
 @st.cache_resource
-# Load models
 def load_model(model_path):
     with open(model_path, 'rb') as file:
         return pickle.load(file)
@@ -19,9 +18,9 @@ def set_background_image_local(image_path):
         f"""
         <style>
         .stApp {{
-            background-image: url("data:image/png;base64,{base64_image}");
+            background-image: url("data:image/jpg;base64,{base64_image}");
             background-size: contain;
-            background-position: fit;
+            background-position: center;
             background-repeat: repeat;
             background-attachment: fixed;
         }}     
@@ -30,9 +29,9 @@ def set_background_image_local(image_path):
         unsafe_allow_html=True
     )
 
-set_background_image_local(r"12.png")
+set_background_image_local(r"carpicture.jpg")
 
-model_car=load_model("final_carmodel.pkl")
+model_car=load_model("car_model.pkl")
 
 encoder_city=load_model("encoder_city.pkl")
 encoder_Insurance_Validity=load_model("encoder_Insurance_Validity.pkl")
@@ -44,55 +43,45 @@ encoder_transmission=load_model("encoder_transmission.pkl")
 encoder_variantName=load_model("encoder_variantName.pkl")
 
 ml_df=pd.read_excel("ml_dl.xlsx")
-st.title("Car Price Prediction App")
+st.title("🚗 Car Resale Price Prediction")
 
 categorical_features = ["city", "ft", "bt", "transmission", "oem", "model", "variantName", "Insurance Validity"]
 dropdown_options = {feature: ml_df[feature].unique().tolist() for feature in categorical_features}
 
 tab1, tab2,tab3 = st.tabs(["Home", "Predict","ChatBot"])
 with tab1:
+    st.subheader("**Welcome to your smart car pricing assistant**")
     st.markdown("""
-                **1. Introduction**
-                In the rapidly evolving automotive market, determining the right price for a vehicle is crucial 
-                for both buyers and sellers. The Car Price Prediction App provides an intelligent solution to 
-                estimate car prices based on key parameters using machine learning models. This tool helps users 
-                make data-driven decisions by leveraging historical data and predictive analytics.
-                
-                **2. Problem Statement**
-                Buying or selling a car requires understanding its fair market value, which is influenced 
-                by multiple factors such as brand, model, year of manufacture, mileage, fuel type, and transmission. 
-                Manually evaluating these factors can be complex and time-consuming. The Car Price Prediction App simplifies 
-                this process by providing instant and accurate price predictions.
-                
-                **3. Key Features**
-                User-Friendly Interface: Simple and interactive Streamlit-based UI.
-                Machine Learning Model: Utilizes an advanced regression model (XGBRegressor) trained 
-                on a vast dataset of car prices.
-                Feature Inputs: Users can enter details like car brand, model, manufacturing year, fuel type, 
-                transmission, and other relevant attributes.
-                Real-Time Predictions: Provides instant car price estimates based on input parameters.
-                Comparison Tool: Allows users to compare multiple cars for better decision-making.
-                
-                **4. Target Audience**
-                Car Buyers & Sellers: Individuals looking to buy or sell a used car at a fair market price.
-                Dealerships & Businesses: Car dealerships and resellers who need an efficient way to estimate car values.
-                Financial Institutions: Banks and insurance companies that assess car values for loan and policy decisions.
-                
-                **5. Technologies Used**
-                Frontend: Streamlit for an interactive and user-friendly web application.
-                Backend: Python with machine learning libraries such as Scikit-learn, XGBoost, and Pandas.
-                Model Deployment: Trained ML model integrated into the Streamlit app for real-time predictions.
-                
-                **6. MLFlow**
-                In my project, I integrated MLflow to efficiently track and manage machine learning experiments within my Streamlit application. 
-                I used MLflow to log important details such as model parameters, performance metrics (like MSE, MAE, and R2),
-                and the trained models themselves. link: https://d27c-34-55-135-201.ngrok-free.app
-                
-                **7. Conclusion**
-                The Car Price Prediction App is a powerful tool for individuals and businesses looking to evaluate 
-                car prices efficiently. By leveraging machine learning, it offers a seamless experience in determining a 
-                car's fair value, making the buying and selling process more transparent and informed.
-                """)
+                In today's fast-paced automotive market, knowing the right resale value of a vehicle is key—whether you're a buyer, seller, or dealership. 
+                Our intelligent prediction system leverages real-world data collected from CarDekho across major Indian cities including Bangalore, Chennai, Hyderabad, Jaipur, Kolkata, and Delhi.""")
+
+    st.markdown("**🔍 What We Offer:**")
+    st.markdown("""
+                Using machine learning and data-driven insights, this app predicts the expected resale price of used cars based on:
+
+                => Car model and make
+
+                => Year of manufacture
+
+                => Fuel type
+
+                => Transmission type
+
+                => Kilometers driven
+
+                => City-specific market trends
+
+                => And much more!""")
+    st.markdown("**🎯 Why Use This App?**")
+    st.markdown("""
+                Instant, accurate price predictions,
+
+                City-aware valuations to reflect local market variations,
+
+                User-friendly interface.
+
+                Whether you're planning to sell your car or just exploring the market, this tool gives you a realistic estimate 
+                that helps you make informed decisions with confidence.""")
 with tab2:
     a1,a2,a3=st.columns(3)
     a4,a5,a6=st.columns(3)
