@@ -104,7 +104,7 @@ with tab2:
         transmission_select=st.selectbox("Select Transmission",dropdown_options["transmission"])
         transmission=encoder_transmission.transform([[transmission_select]])[0][0]
     with a6:
-        ownerNo=st.number_input("Enter no. of Owner's")
+        ownerNo=st.number_input("Enter no. of Owner's",min_value=1)
     with a7:
         oem_list=ml_df[ml_df["ft"]==ft_select]["oem"]
         oem_filtered=oem_list.unique().tolist()
